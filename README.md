@@ -113,6 +113,30 @@ ts-decohere/
 
 MIT
 
+## Future Development
+
+### Pattern Discovery Enhancements
+- The system currently tests example values against known constraints and reports which properties are already captured
+- This helps the LLM focus on discovering differential signal (e.g., Fibonacci patterns) beyond basic properties
+- Heuristics are accumulated in a reusable library across builds
+
+### Planned Features
+- **Complex object types**: Extend beyond primitives to support object shapes, nested structures
+- **Array patterns**: Support array types with structural constraints (length, element patterns, relationships)
+- **Composite types**: Records, tuples, discriminated unions
+- **Relational constraints**: Properties that depend on other properties
+- **Custom type primitives**: Extensible system for domain-specific patterns
+
+Example future usage:
+```typescript
+type User = CohereFromExamples<
+  { id: 1, name: "Alice", age: 30 } |
+  { id: 2, name: "Bob", age: 25 }
+>;
+
+type SortedArray = InferFromMeasurements<[1,2,3] | [5,10,15]> & Ascending;
+```
+
 ## Contributing
 
 This is an experimental project exploring the intersection of type systems, constraint solving, and LLM-powered synthesis.
