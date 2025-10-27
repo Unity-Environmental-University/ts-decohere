@@ -1,0 +1,7 @@
+{
+  "envSearchPaths": [
+    ".env",
+    "~/Documents/repos/tools/.env"
+  ],
+  "factoryCacheDir": "generated/decohere-cache"
+}
