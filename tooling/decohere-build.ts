@@ -522,7 +522,10 @@ async function callLLM(
     "Respond with JSON matching {\"value\": <literal>, \"heuristics\": [ { \"name\": string, \"description\": string, \"predicate\": string } ], \"explanation\": string }.",
     "Each heuristic predicate must be a valid JavaScript arrow function of the form (value) => boolean and should be reusable.",
     "The 'value' must be JSON-serializable, satisfy all described constraints, and be consistent with supplied heuristics.",
-    "Always include at least one heuristic that explains why the value satisfies the constraints (parity, range, membership, etc.).",
+    "CRITICAL: Look for patterns and signal in example sets. Analyze the examples deeply for underlying structure.",
+    "Study relationships between consecutive terms, ratios, differences, growth patterns, and mathematical properties.",
+    "The generated value must respect ALL patterns you discover in the examples, not just explicit constraints like parity or range.",
+    "Always include heuristics that capture the discovered pattern, not just basic properties.",
     "Treat measurement/example unions as patterns to generalize from, not exhaustive enumerations, unless the type explicitly requires literal equality.",
     "If the constraints are impossible, set explanation to \"__INFEASIBLE__\" and return a null value.",
   ].join(" ");
