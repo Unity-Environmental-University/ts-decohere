@@ -204,12 +204,48 @@ function computeTypeFingerprint(typeText: string, dependencies: DeclarationFinge
   return hash.digest("hex");
 }
 
-function buildContextSnippet(typeText: string, dependencies: DeclarationFingerprint[]): string {
-  if (dependencies.length === 0) {
-    return typeText;
+function analyzeExampleProperties(numbers: number[], constraints: Constraint[]): string {
+  if (numbers.length === 0) {
+    return "";
   }
-  const combined = dependencies.map((dep) => dep.text).join("\n\n");
-  return combined.length > 4000 ? combined.slice(0, 4000) : combined;
+
+  const satisfiedConstraints: string[] = [];
+  for (const constraint of constraints) {
+    if (numbers.every((n) => constraint.test(n))) {
+      satisfiedConstraints.push(constraint.description);
+    }
+  }
+
+  if (satisfiedConstraints.length === 0) {
+    return `Example values: ${numbers.join(", ")}\nPattern analysis needed: What structure connects these specific values?`;
+  }
+
+  return [
+    `Example values: ${numbers.join(", ")}`,
+    `Common properties already captured: ${satisfiedConstraints.join(", ")}`,
+    `Pattern analysis needed: What additional structure or relationship connects these specific values beyond the common properties?`,
+  ].join("\n");
+}
+
+function buildContextSnippet(
+  typeText: string,
+  dependencies: DeclarationFingerprint[],
+  exampleNumbers: number[],
+  constraints: Constraint[]
+): string {
+  const parts: string[] = [];
+
+  if (exampleNumbers.length > 0) {
+    parts.push(analyzeExampleProperties(exampleNumbers, constraints));
+  }
+
+  if (dependencies.length > 0) {
+    const combined = dependencies.map((dep) => dep.text).join("\n\n");
+    const truncated = combined.length > 4000 ? combined.slice(0, 4000) : combined;
+    parts.push("Type definitions:", truncated);
+  }
+
+  return parts.length > 0 ? parts.join("\n\n") : typeText;
 }
 
 function splitIntersections(typeText: string): string[] {
@@ -705,7 +741,14 @@ async function processFile(entryPath: string): Promise<void> {
       heuristicDefs = cachedResult.entry.heuristics ?? [];
       heuristicConstraints = cachedResult.heuristicConstraints;
     } else {
-      const contextSnippet = buildContextSnippet(typeText, dependencies);
+      const exampleNumbers: number[] = [];
+      for (const component of splitIntersections(typeText)) {
+        const nums = parseExampleNumbers(component);
+        if (nums) {
+          exampleNumbers.push(...nums);
+        }
+      }
+      const contextSnippet = buildContextSnippet(typeText, dependencies, exampleNumbers, derivedConstraints);
       const existingConstraints = mergeConstraintSets(derivedConstraints, heuristicConstraints);
 
       const synthesized = await synthesizeValue(
