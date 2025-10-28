@@ -23,12 +23,12 @@ The system infers constraints from type expressions, uses LLMs to generate candi
 This package is currently in pre-1.0 development and can be installed directly from GitHub:
 
 ```bash
-npm install github:anthropics/ts-decohere
+npm install github:Unity-Environmental-University/ts-decohere
 ```
 
 Or with a specific version tag:
 ```bash
-npm install github:anthropics/ts-decohere#v0.0.1-pre.1
+npm install github:Unity-Environmental-University/ts-decohere#v0.0.1-pre.1
 ```
 
 ### Local Development
@@ -137,6 +137,24 @@ Explicit numeric constraints:
 type BigNumber = GreaterThanX<1000>;
 type BigEvenNumber = CohereFromExamples<2 | 4> & GreaterThanX<1000>;
 ```
+
+## Simple Types as Scaffolding
+
+Simple decoherence types (like `Prime`, `Even`) are valid building blocks, not limitations. They work great for straightforward patterns. The key insight: **when a type's inferred predicate stops generalizing** — when new values violate it — that's the signal to escalate to more complex constraint composition.
+
+```typescript
+// Start simple
+type Prime = CohereFromExamples<2 | 3 | 5 | 7>;
+const p = Decohere<Prime>(); // Works: generates a prime
+
+// Later, when you need domain-specific constraints:
+type LargePrime = Prime & GreaterThanX<1000>;
+type PrimeWithPattern = Prime & CohereFromExamples<11 | 13 | 17 | 19 | 23>; // More specific examples
+
+const lp = Decohere<LargePrime>(); // Automatically composes constraints
+```
+
+Complexity emerges naturally where it's needed. Predicates that fail become prompts to refine, not signs to abandon the pattern.
 
 ## Configuration
 
