@@ -21,7 +21,7 @@
     "constraint-solving",
     "test-generation"
   ],
-  "author": "Anthropic",
+  "author": "Unity Environmental University",
   "license": "MIT",
   "devDependencies": {
     "@jest/globals": "^29.7.0",
