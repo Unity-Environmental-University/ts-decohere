@@ -7,3 +7,5 @@ export * from "./config";
 export * from "./registry";
 export * from "./utils";
 export * from "./predicates";
+export * from "./llm";
+export * from "./candidate-selector";
