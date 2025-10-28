@@ -34,6 +34,11 @@
       "id": 4,
       "title": "Selective cache regeneration & predicate audit workflow",
       "status": "completed"
+    },
+    {
+      "id": 5,
+      "title": "LLM-generated fuzzing & test generators",
+      "status": "pending"
     }
   ],
   "log": [
@@ -102,6 +107,13 @@
         "step_id": 4,
         "title": "Selective cache regeneration & predicate audit workflow",
         "summary": "Implemented CacheManager for intelligent cache auditing and preservation. Generates regeneration reports based on confidence scores. Added cache health metrics (excellent/good/acceptable/poor). Extracted test fixtures to reduce boilerplate. 13 new tests, 165 total tests passing."
+      }
+    },
+    {
+      "ts": "2025-10-28T17:57:00Z",
+      "type": "note",
+      "data": {
+        "text": "Step 5 proposed: LLM-generated fuzzing & test generators. Instead of single synthesized values, have LLM generate generator functions that produce diverse valid test cases. Example: for Prime type, LLM generates a generator that creates random primes by testing candidates with trial division. Enables property-based testing and better cache seeding."
       }
     }
   ],
