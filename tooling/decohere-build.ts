@@ -5,6 +5,18 @@ import vm from "node:vm";
 import { Node, Project, SyntaxKind, TypeChecker, Symbol as MorphSymbol, SourceFile } from "ts-morph";
 import { config as loadEnv } from "dotenv";
 import OpenAI from "openai";
+import {
+  buildUserMessage,
+  buildSystemPrompt,
+  parseLLMResponse,
+  validateLLMResponse,
+  PromptContext,
+} from "./lib/llm";
+import {
+  rankCandidates,
+  selectBestCandidate,
+  isConfidentCandidate,
+} from "./lib/candidate-selector";
 
 type Config = {
   envSearchPaths?: string[];
@@ -1935,13 +1947,8 @@ function validateValue(constraints: Constraint[], value: unknown): ValidationRes
 
 async function callLLM(
   typeText: string,
-  context: string,
-  summary: string,
-  mustConstraints: Constraint[],
-  suggestedPatterns: Constraint[],
-  heuristicsLibrary: string,
-  attempt: number,
-  feedback: string
+  systemPrompt: string,
+  userMessage: string
 ): Promise<LLMResponse> {
   if (!openai) {
     throw new Error(
@@ -1949,41 +1956,9 @@ async function callLLM(
     );
   }
 
-  const systemPrompt = [
-    "You generate JSON describing candidate values and reusable validation predicates for TypeScript types.",
-    "Respond with JSON matching {\"value\": <literal>, \"heuristics\": [ { \"name\": string, \"description\": string, \"predicate\": string } ], \"candidateValidators\": [ { \"name\"?: string, \"description\"?: string, \"predicate\": string } ]?, \"explanation\": string }.",
-    "All strings must use standard JSON string syntax with escaped newlines (\\n); never use backticks or template literals.",
-    "Each predicate may be a multi-line arrow function of the form (value) => { ... } expressed within a JSON string.",
-    "You must satisfy all MUST constraints; suggested patterns are optional but desirable heuristics.",
-    "Provide at least three distinct candidate validators capturing different perspectives of the pattern."
-  ].join(" ");
-
-  const mustSummary = mustConstraints.length > 0
-    ? mustConstraints.map((c) => `- ${c.description}`).join("\n")
-    : "(none)";
-  const suggestionSummary = suggestedPatterns.length > 0
-    ? suggestedPatterns.map((c) => `- ${c.description}`).join("\n")
-    : "(none)";
-
   const messages = [
     { role: "system" as const, content: systemPrompt },
-    {
-      role: "user" as const,
-      content: [
-        `Attempt: ${attempt}`,
-        `Type expression: ${typeText}`,
-        `Must constraints:\n${mustSummary}`,
-        `Suggested patterns:\n${suggestionSummary}`,
-        summary ? `Derived guard summary: ${summary}` : "Derived guard summary: (none)",
-        heuristicsLibrary ? "Existing heuristics:\n" + heuristicsLibrary : "Existing heuristics: (none)",
-        "Context snippets:",
-        context,
-        feedback ? `Previous feedback: ${feedback}` : "",
-        "Respond with JSON only.",
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    },
+    { role: "user" as const, content: userMessage },
   ];
 
   const completion = await openai.responses.create({
@@ -2000,14 +1975,7 @@ async function callLLM(
     content = content.replace(/^```(?:json)?\s*/i, "").replace(/```$/i, "").trim();
   }
 
-  try {
-    const parsed = JSON.parse(content) as LLMResponse;
-    return parsed;
-  } catch (error) {
-    throw new Error(
-      `Failed to parse LLM JSON for "${typeText}": ${(error as Error).message}. Raw response: ${content}`
-    );
-  }
+  return parseLLMResponse(content);
 }
 
 async function synthesizeValue(
@@ -2026,7 +1994,13 @@ async function synthesizeValue(
     const mustConstraints = baseConstraints.filter((constraint) => constraint.source === "inferred");
     const suggestedPatterns = baseConstraints.filter((constraint) => constraint.source !== "inferred");
     const heuristicsLibrary = buildHeuristicLibrarySnippet(accumulatedHeuristics);
-    const response = await callLLM(
+
+    // Load available helpers from registry
+    const availableHelpers = Object.values(helperRegistry);
+    const availablePredicatePatterns = Object.values(predicateRegistry).map(entry => entry.predicateSource);
+
+    // Build enhanced prompt context
+    const promptContext: PromptContext = {
       typeText,
       context,
       summary,
@@ -2034,8 +2008,16 @@ async function synthesizeValue(
       suggestedPatterns,
       heuristicsLibrary,
       attempt,
-      feedback
-    );
+      feedback,
+      availableHelpers,
+      availablePredicatePatterns,
+    };
+
+    // Build system and user prompts using new modules
+    const systemPrompt = buildSystemPrompt(true);
+    const userMessage = buildUserMessage(promptContext);
+
+    const response = await callLLM(typeText, systemPrompt, userMessage);
     const model = openai?.apiKey ? "gpt-4.1-mini" : "unknown";
 
     if (response.explanation === "__INFEASIBLE__") {
@@ -2045,19 +2027,43 @@ async function synthesizeValue(
       continue;
     }
 
-    const candidateBundles = (response.candidateValidators ?? []).map((candidate, index) => {
-      const name = sanitizeIdentifier(candidate.name || `candidate_${index + 1}`);
-      return [{
-        name,
-        description: candidate.description || "Candidate validator",
-        predicate: candidate.predicate,
-      }];
-    });
+    // Rank candidates using multi-dimensional scoring
+    const candidateValidators = response.candidateValidators ?? [];
+    let selectedCandidates: HeuristicDefinition[] = [];
+    let rankedCandidates: HeuristicDefinition[][] = [];
+
+    if (candidateValidators.length > 0) {
+      // Convert response candidates to HeuristicDefinition format
+      const candidates: HeuristicDefinition[] = candidateValidators.map((candidate, index) => {
+        const name = sanitizeIdentifier(candidate.name || `candidate_${index + 1}`);
+        return {
+          name,
+          description: candidate.description || "Candidate validator",
+          predicate: candidate.predicate,
+        };
+      });
+
+      // Rank candidates based on complexity, coverage, and reusability
+      const ranked = rankCandidates(candidates, accumulatedConstraints, []);
+
+      // Select best candidate(s) with confidence threshold
+      if (ranked.length > 0) {
+        const best = ranked[0];
+        const isConfident = isConfidentCandidate(best, 0.6);
+
+        selectedCandidates = [best.candidate];
+        rankedCandidates = ranked.map(score => [score.candidate]);
+
+        if (!isConfident) {
+          feedback = `Best candidate only ${(best.totalScore * 100).toFixed(1)}% confident. Try other approaches.`;
+        }
+      }
+    }
 
     const { constraints: heuristicConstraints, normalized } = compileHeuristics(response.heuristics);
     accumulatedConstraints = mergeConstraintSets(accumulatedConstraints, heuristicConstraints);
     accumulatedHeuristics = mergeHeuristicDefs(accumulatedHeuristics, normalized);
-    const candidates: HeuristicDefinition[][] = candidateBundles.length > 0 ? candidateBundles : [normalized];
+    const candidates: HeuristicDefinition[][] = rankedCandidates.length > 0 ? rankedCandidates : [normalized];
     const validation = validateValue(accumulatedConstraints, response.value);
     if (validation.ok) {
       attempts.push({ attempt, model, feedback, explanation: response.explanation });
