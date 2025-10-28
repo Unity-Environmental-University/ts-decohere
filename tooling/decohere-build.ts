@@ -852,6 +852,14 @@ function parseExampleNumbers(component: string): number[] | undefined {
     return undefined;
   }
 
+  // 🔴 TODO: CRITICAL - Constraint Value Propagation
+  // When InferFromMeasurments/CohereFromExamples constraints are composed with others (e.g., & GreaterThanX<100>),
+  // the actual example values extracted here MUST be included in the constraint description sent to the LLM.
+  // Currently, the LLM may only see "InferFromMeasurments" without the actual [1, 2, 3, 5, 8, 13] values,
+  // making it impossible to discover the underlying pattern (Fibonacci, prime sequence, etc.).
+  // This is why MysteryType & GreaterThanX<100> & Even returns 102 instead of 144.
+  // Fix: Ensure buildConstraintSections() or buildUserMessage() receives complete example values in descriptions.
+
   let inner = match[1].trim();
   if (inner.startsWith("[")) {
     inner = inner.slice(1, -1);
