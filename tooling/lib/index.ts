@@ -11,3 +11,4 @@ export * from "./llm";
 export * from "./candidate-selector";
 export * from "./audit";
 export * from "./logger";
+export * from "./cache-manager";
