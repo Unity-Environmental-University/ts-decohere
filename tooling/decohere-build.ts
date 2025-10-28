@@ -17,6 +17,14 @@ import {
   selectBestCandidate,
   isConfidentCandidate,
 } from "./lib/candidate-selector";
+import {
+  globalAuditLog,
+  AuditLog,
+} from "./lib/audit";
+import {
+  globalLogger,
+  Logger,
+} from "./lib/logger";
 
 type Config = {
   envSearchPaths?: string[];
@@ -48,6 +56,21 @@ type CacheEntry = {
   heuristicsPath?: string;
   heuristics?: HeuristicDefinition[];
   resolvedType?: string;
+  // Audit information for candidate selection and ranking
+  candidateSelectionAudit?: {
+    attempt: number;
+    selectedCandidateIndex: number;
+    selectedCandidateName: string;
+    candidateScores?: Array<{
+      name: string;
+      totalScore: number;
+      complexityScore: number;
+      coverageScore: number;
+      reusabilityScore: number;
+    }>;
+    confidence?: number;
+    selectionReason?: string;
+  };
 };
 
 type MaterializeSuccess = {
@@ -58,6 +81,7 @@ type MaterializeSuccess = {
   constraints: Constraint[];
   resolvedType?: string;
   candidateValidators?: HeuristicDefinition[][];
+  candidateSelectionAudit?: CacheEntry["candidateSelectionAudit"];
 };
 
 type CachedMaterialization = {
@@ -1999,6 +2023,15 @@ async function synthesizeValue(
     const availableHelpers = Object.values(helperRegistry);
     const availablePredicatePatterns = Object.values(predicateRegistry).map(entry => entry.predicateSource);
 
+    // Set up logging context
+    globalLogger.setContext({ typeText, attempt, phase: "synthesis", component: "llm" });
+    globalLogger.debug(`Building prompt for type`, {
+      mustConstraints: mustConstraints.length,
+      suggestedPatterns: suggestedPatterns.length,
+      availableHelpers: availableHelpers.length,
+      availablePredicates: availablePredicatePatterns.length,
+    });
+
     // Build enhanced prompt context
     const promptContext: PromptContext = {
       typeText,
@@ -2017,11 +2050,14 @@ async function synthesizeValue(
     const systemPrompt = buildSystemPrompt(true);
     const userMessage = buildUserMessage(promptContext);
 
+    globalLogger.debug(`Calling LLM`);
     const response = await callLLM(typeText, systemPrompt, userMessage);
     const model = openai?.apiKey ? "gpt-4.1-mini" : "unknown";
 
     if (response.explanation === "__INFEASIBLE__") {
+      globalLogger.warn(`LLM returned infeasible`, { explanation: response.explanation });
       attempts.push({ attempt, model, feedback, explanation: response.explanation });
+      globalAuditLog.recordValidation(typeText, attempt, false, ["Infeasible"], "Constraint set appears infeasible");
       feedback =
         "The constraint set is satisfiable. Please generalize beyond given examples and try another candidate.";
       continue;
@@ -2031,6 +2067,7 @@ async function synthesizeValue(
     const candidateValidators = response.candidateValidators ?? [];
     let selectedCandidates: HeuristicDefinition[] = [];
     let rankedCandidates: HeuristicDefinition[][] = [];
+    let candidateSelectionAudit: CacheEntry["candidateSelectionAudit"] | undefined;
 
     if (candidateValidators.length > 0) {
       // Convert response candidates to HeuristicDefinition format
@@ -2044,6 +2081,7 @@ async function synthesizeValue(
       });
 
       // Rank candidates based on complexity, coverage, and reusability
+      globalLogger.debug(`Ranking ${candidates.length} candidates`);
       const ranked = rankCandidates(candidates, accumulatedConstraints, []);
 
       // Select best candidate(s) with confidence threshold
@@ -2053,6 +2091,37 @@ async function synthesizeValue(
 
         selectedCandidates = [best.candidate];
         rankedCandidates = ranked.map(score => [score.candidate]);
+
+        // Log ranking details
+        globalLogger.info(`Candidate ranking`, {
+          total: ranked.length,
+          bestName: best.candidate.name,
+          bestScore: (best.totalScore * 100).toFixed(1) + "%",
+          confident: isConfident,
+        });
+
+        // Record audit information
+        const selectionReason = isConfident
+          ? `High confidence (${(best.totalScore * 100).toFixed(1)}%)`
+          : `Best of available (${(best.totalScore * 100).toFixed(1)}% confidence)`;
+
+        globalAuditLog.recordCandidateSelection(typeText, attempt, ranked, 0, best.totalScore, selectionReason);
+
+        // Store audit in cache
+        candidateSelectionAudit = {
+          attempt,
+          selectedCandidateIndex: 0,
+          selectedCandidateName: best.candidate.name,
+          candidateScores: ranked.map(score => ({
+            name: score.candidate.name,
+            totalScore: score.totalScore,
+            complexityScore: score.complexityScore,
+            coverageScore: score.coverageScore,
+            reusabilityScore: score.reusabilityScore,
+          })),
+          confidence: best.totalScore,
+          selectionReason,
+        };
 
         if (!isConfident) {
           feedback = `Best candidate only ${(best.totalScore * 100).toFixed(1)}% confident. Try other approaches.`;
@@ -2064,8 +2133,12 @@ async function synthesizeValue(
     accumulatedConstraints = mergeConstraintSets(accumulatedConstraints, heuristicConstraints);
     accumulatedHeuristics = mergeHeuristicDefs(accumulatedHeuristics, normalized);
     const candidates: HeuristicDefinition[][] = rankedCandidates.length > 0 ? rankedCandidates : [normalized];
+
+    globalLogger.debug(`Validating synthesized value`);
     const validation = validateValue(accumulatedConstraints, response.value);
     if (validation.ok) {
+      globalLogger.info(`Validation passed`, { attempt });
+      globalAuditLog.recordValidation(typeText, attempt, true);
       attempts.push({ attempt, model, feedback, explanation: response.explanation });
       return {
         value: response.value,
@@ -2074,12 +2147,14 @@ async function synthesizeValue(
         heuristics: accumulatedHeuristics,
         constraints: accumulatedConstraints,
         candidateValidators: candidates,
+        candidateSelectionAudit,
       };
     }
 
     attempts.push({ attempt, model, feedback, explanation: response.explanation });
     const errorSummary = validation.errors.join("; ");
-    console.log(`Attempt ${attempt} for ${typeText} rejected: ${errorSummary}`);
+    globalLogger.warn(`Validation failed`, { attempt, errors: errorSummary });
+    globalAuditLog.recordValidation(typeText, attempt, false, validation.errors);
     feedback =
       `Validation failed: ${errorSummary}. Produce an even number greater than any thresholds while respecting inferred patterns; do not restrict to the literal sample values.`;
   }
@@ -2238,6 +2313,7 @@ async function processFile(entryPath: string): Promise<void> {
         );
         const existingConstraints = mergeConstraintSets(derivedConstraints, heuristicConstraints);
 
+        globalLogger.info(`Synthesizing value for type`);
         const synthesized = await synthesizeValue(
           typeText,
           contextSnippet,
@@ -2275,8 +2351,10 @@ async function processFile(entryPath: string): Promise<void> {
           heuristicsPath: heuristicsModulePath ? relative(PROJECT_ROOT, heuristicsModulePath) : undefined,
           heuristics: heuristicDefs,
           resolvedType: resolvedTypeExpression,
+          candidateSelectionAudit: synthesized.candidateSelectionAudit,
         };
         saveCacheEntry(cachePath, entry);
+        globalLogger.info(`Saved cache for type`);
         console.log(`Cached decoherence for "${typeText}" at ${cachePath}`);
       }
 
