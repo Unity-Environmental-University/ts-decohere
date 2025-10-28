@@ -39,6 +39,11 @@
       "id": 5,
       "title": "LLM-generated fuzzing & test generators",
       "status": "pending"
+    },
+    {
+      "id": 6,
+      "title": "Signal processing & NN-based pattern discovery",
+      "status": "future"
     }
   ],
   "log": [
@@ -114,6 +119,13 @@
       "type": "note",
       "data": {
         "text": "Step 5 proposed: LLM-generated fuzzing & test generators. Instead of single synthesized values, have LLM generate generator functions that produce diverse valid test cases. Example: for Prime type, LLM generates a generator that creates random primes by testing candidates with trial division. Enables property-based testing and better cache seeding."
+      }
+    },
+    {
+      "ts": "2025-10-28T20:15:00Z",
+      "type": "note",
+      "data": {
+        "text": "Step 6 catalogued (future): Signal processing & NN-based pattern discovery. Use Fourier transforms and wavelets to compute spectral fingerprints of example sequences [1,2,3,5,8,13]. Train lightweight NN classifier to recognize pattern families (Fibonacci, prime, arithmetic, geometric, modular, etc.) without explicit rules. Spectral features + NN output inform LLM predicates. Advantages: deterministic, local computation, handles edge cases and emergent patterns. Addresses constraint value propagation issue where LLM can't see example values to discover patterns."
       }
     }
   ],
