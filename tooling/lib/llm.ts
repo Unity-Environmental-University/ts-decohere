@@ -25,17 +25,49 @@ export interface PromptContext {
 export function buildSystemPrompt(includeHelpers: boolean = false): string {
   const lines = [
     "You generate JSON describing candidate values and reusable validation predicates for TypeScript types.",
-    "Respond with JSON matching {\"value\": <literal>, \"heuristics\": [ { \"name\": string, \"description\": string, \"predicate\": string } ], \"candidateValidators\": [ { \"name\"?: string, \"description\"?: string, \"predicate\": string } ]?, \"explanation\": string }.",
-    "All strings must use standard JSON string syntax with escaped newlines (\\n); never use backticks or template literals.",
-    "Each predicate may be a multi-line arrow function of the form (value) => { ... } expressed within a JSON string.",
-    "You must satisfy all MUST constraints; suggested patterns are optional but desirable heuristics.",
-    "Provide at least three distinct candidate validators capturing different perspectives of the pattern.",
+    "Think through the problem in pseudocode, then respond with valid JSON.",
+    "",
+    "PSEUDOCODE REASONING:",
+    "```",
+    "// 1. Analyze the constraints and examples",
+    "// 2. Pick a simple, direct value that satisfies them ALL",
+    "value = <concrete value that passes every constraint>",
+    "",
+    "// 3. Infer the core pattern as reusable predicates",
+    "// Start simple. If it stops generalizing later, that's a signal to refine, not a failure.",
+    "heuristics = [",
+    "  // Name a fundamental property this value embodies",
+    "  { name: 'propertyName', description: 'Why this property explains the pattern', predicate: (x) => <test> }",
+    "]",
+    "",
+    "// 4. Provide 3+ candidate validators from different angles",
+    "// Each captures a different aspect or implementation of the same core idea",
+    "candidateValidators = [",
+    "  { name: 'approach1', description: '...', predicate: (x) => <alternative test 1> },",
+    "  { name: 'approach2', description: '...', predicate: (x) => <alternative test 2> },",
+    "  { name: 'approach3', description: '...', predicate: (x) => <alternative test 3> }",
+    "]",
+    "",
+    "// 5. Explain why this value and these predicates work together",
+    "explanation = 'Clear narrative of how value satisfies constraints via the predicates'",
+    "```",
+    "",
+    "PHILOSOPHY:",
+    "- Prefer SIMPLE, direct predicates. Complexity is scaffolding.",
+    "- If a predicate stops generalizing on new data, that's a refining signal, not failure.",
+    "- Respond with valid JSON that matches your pseudocode reasoning.",
+    "",
+    "OUTPUT FORMAT:",
+    "All strings use standard JSON syntax with escaped newlines (\\\\n); never backticks.",
+    "Each predicate is a multi-line arrow function (value) => { ... } as a JSON string.",
+    "You must satisfy all MUST constraints; suggested patterns are optional but desirable.",
+    "Provide at least three distinct candidate validators.",
   ];
 
   if (includeHelpers) {
     lines.push(
-      "You may also suggest using helper functions from the available helpers library for complex patterns.",
-      "Suggested helpers should appear in heuristics as compositions, e.g., (value) => helpers.isEven(value) && helpers.isPositive(value)"
+      "HELPERS: You may suggest helper functions from the available library for composition.",
+      "Example: (value) => helpers.isEven(value) && helpers.isPositive(value)"
     );
   }
 
@@ -125,8 +157,20 @@ export function buildUserMessage(context: PromptContext): string {
   const sections: string[] = [
     `Attempt: ${context.attempt}`,
     `Type expression: ${context.typeText}`,
+    ``,
+    `TASK: Synthesize a single concrete value AND generate reusable predicates that explain why it satisfies the type.`,
+    ``,
+    `CONSTRAINTS TO SATISFY:`,
     `Must constraints:\n${must}`,
     `Suggested patterns:\n${suggested}`,
+    ``,
+    `REASONING PSEUDOCODE FOR THIS TYPE:`,
+    `// Analyze constraints above`,
+    `// Pick a simple, direct value that satisfies ALL must constraints`,
+    `// Infer the simplest predicate(s) that explain the pattern`,
+    `// If this predicate stops working on new data later, that's okay—it signals where to refine`,
+    `// Generate 3+ alternative validators from different angles`,
+    ``,
     context.summary ? `Derived guard summary: ${context.summary}` : "Derived guard summary: (none)",
     context.heuristicsLibrary
       ? `Existing heuristics:\n${context.heuristicsLibrary}`
@@ -141,13 +185,13 @@ export function buildUserMessage(context: PromptContext): string {
     sections.push(buildPredicateSuggestions(context.availablePredicatePatterns));
   }
 
-  sections.push("Context snippets:", context.context);
+  sections.push("Code context:", context.context);
 
   if (context.feedback) {
-    sections.push(`Previous feedback: ${context.feedback}`);
+    sections.push(`Previous attempt feedback (use to refine): ${context.feedback}`);
   }
 
-  sections.push("Respond with JSON only.");
+  sections.push("Respond with valid JSON only. No markdown, no explanation outside the JSON.");
 
   return sections.filter(Boolean).join("\n");
 }
@@ -243,27 +287,44 @@ export function validateLLMResponse(response: LLMResponse): { valid: boolean; er
  */
 export function buildGeneratorPrompt(typeText: string, selectedValidator: string, explanation: string): string {
   return `
-You are a test data generator expert. Given a type and its validation logic, generate a generator function that produces diverse valid test values.
+You are a test data generator expert. Given a type and its validation logic, generate a generator function that produces diverse valid test values for property-based testing and fuzzing.
 
 Type: ${typeText}
 Selected Validator: ${selectedValidator}
 Type Explanation: ${explanation}
 
-Generate a JavaScript generator function that:
-1. Produces 100+ diverse valid values satisfying the type constraint
-2. Uses the validator logic internally to ensure correctness
-3. Generates varied examples (e.g., for numbers: small, large, boundary values; for composites: mixed patterns)
-4. Returns values that would pass the validator
+PSEUDOCODE REASONING:
+\`\`\`
+// 1. Understand the constraint: ${explanation}
+// 2. Implement the validator logic directly in the generator
+// 3. Generate 100+ diverse values that all pass the validator
+// 4. Vary outputs: edge cases, boundaries, random valid values, patterns
+// 5. Each yielded value must satisfy the validator
 
-Respond with ONLY a JavaScript generator function (no markdown, no explanation). Start with 'function* generate' and include the full implementation.
-
-Example format:
 function* generate${typeText}() {
-  const validator = (value) => { ... };
+  const validator = (value) => { /* ${selectedValidator} */ };
+
+  // Strategy: Generate values from different distributions
+  // - Edge cases (boundaries, 0, -1, MAX, MIN)
+  // - Common patterns (incrementing, exponential, random)
+  // - Verify each passes the validator before yielding
+
   for (let i = 0; i < 100; i++) {
-    yield <value>;
+    let candidate = /* pick/generate a candidate */;
+    // Only yield if it passes validation
+    if (validator(candidate)) {
+      yield candidate;
+    }
   }
 }
+\`\`\`
+
+Respond with ONLY valid JavaScript code (no markdown, no explanation). The code must:
+1. Be a working generator function that can be executed immediately
+2. Start with 'function* generate${typeText}()'
+3. Produce 100+ diverse valid values satisfying the constraint
+4. Include the validator logic or validation checks
+5. Handle edge cases and varied distributions
 `;
 }
 
