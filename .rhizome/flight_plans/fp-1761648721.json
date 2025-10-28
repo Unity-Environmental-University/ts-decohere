@@ -23,12 +23,12 @@
     {
       "id": 2,
       "title": "Prompt updates & multi-candidate validator selection",
-      "status": "in_progress"
+      "status": "completed"
     },
     {
       "id": 3,
       "title": "Restructure predicate storage and logging",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": 4,
@@ -59,6 +59,23 @@
       "data": {
         "step_id": 2,
         "title": "Prompt updates & multi-candidate validator selection"
+      }
+    },
+    {
+      "ts": "2025-10-28T14:15:00Z",
+      "type": "step_completed",
+      "data": {
+        "step_id": 2,
+        "title": "Prompt updates & multi-candidate validator selection",
+        "summary": "Integrated LLM and candidate-selector modules into synthesizeValue(). Refactored callLLM to use buildUserMessage() for prompt assembly. Added rankCandidates and selectBestCandidate with confidence thresholds. Load available helpers and predicates from registries. All 126 tests passing, all 7 examples working."
+      }
+    },
+    {
+      "ts": "2025-10-28T14:15:30Z",
+      "type": "step_started",
+      "data": {
+        "step_id": 3,
+        "title": "Restructure predicate storage and logging"
       }
     }
   ],
