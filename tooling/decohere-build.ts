@@ -2002,6 +2002,54 @@ async function callLLM(
   return parseLLMResponse(content);
 }
 
+/**
+ * Generate a test value generator function for fuzzing
+ */
+async function generateTestGenerator(
+  typeText: string,
+  selectedValidator: string,
+  explanation: string
+): Promise<string | null> {
+  try {
+    if (!openai) {
+      globalLogger.warn(`No OpenAI configured, skipping generator generation`);
+      return null;
+    }
+
+    globalLogger.debug(`Generating test generator for ${typeText}`);
+
+    const { buildGeneratorPrompt } = require("./lib/llm");
+    const prompt = buildGeneratorPrompt(typeText, selectedValidator, explanation);
+
+    const messages = [
+      { role: "system" as const, content: "You are an expert test data generator. Generate JavaScript generator functions that produce diverse valid test values. Return ONLY the function code, no markdown or explanation." },
+      { role: "user" as const, content: prompt },
+    ];
+
+    const completion = await openai.responses.create({
+      model: "gpt-4.1-mini",
+      input: messages,
+    });
+
+    let source = completion.output_text?.trim();
+    if (!source) {
+      globalLogger.warn(`LLM returned empty generator for ${typeText}`);
+      return null;
+    }
+
+    // Clean up markdown if present
+    if (source.startsWith("```")) {
+      source = source.replace(/^```(?:javascript|js)?\s*/i, "").replace(/```$/i, "").trim();
+    }
+
+    globalLogger.info(`Generated test generator for ${typeText}`, { sourceLength: source.length });
+    return source;
+  } catch (error) {
+    globalLogger.warn(`Failed to generate test generator`, { error: String(error), typeText });
+    return null;
+  }
+}
+
 async function synthesizeValue(
   typeText: string,
   context: string,
@@ -2356,6 +2404,21 @@ async function processFile(entryPath: string): Promise<void> {
         saveCacheEntry(cachePath, entry);
         globalLogger.info(`Saved cache for type`);
         console.log(`Cached decoherence for "${typeText}" at ${cachePath}`);
+
+        // Generate test generator for Prime type (experimental fuzzing)
+        console.log(`[Generator] Checking type: "${typeText}" (resolvedType: "${resolvedTypeExpression}")`);
+        if (typeText.includes("Prime") || resolvedTypeExpression === "Prime") {
+          console.log(`[Generator] Matched Prime! Attempting generation...`);
+          const selectedValidator = synthesized.candidateSelectionAudit?.selectedCandidateName || "unknown";
+          const explanation = attempts[0]?.explanation || "Prime number validation";
+          const generatorSource = await generateTestGenerator(typeText, selectedValidator, explanation);
+
+          if (generatorSource) {
+            const generatorPath = join(CACHE_DIR, `Prime_generator.ts`);
+            writeFileSync(generatorPath, `// Auto-generated test generator for Prime type\n${generatorSource}\n`, "utf-8");
+            console.log(`✨ Generated test generator for Prime at ${generatorPath}`);
+          }
+        }
       }
 
       const literal = JSON.stringify(value);

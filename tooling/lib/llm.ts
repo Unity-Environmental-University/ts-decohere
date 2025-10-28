@@ -237,3 +237,37 @@ export function validateLLMResponse(response: LLMResponse): { valid: boolean; er
     errors,
   };
 }
+
+/**
+ * Build prompt for generating test value generator functions
+ */
+export function buildGeneratorPrompt(typeText: string, selectedValidator: string, explanation: string): string {
+  return `
+You are a test data generator expert. Given a type and its validation logic, generate a generator function that produces diverse valid test values.
+
+Type: ${typeText}
+Selected Validator: ${selectedValidator}
+Type Explanation: ${explanation}
+
+Generate a JavaScript generator function that:
+1. Produces 100+ diverse valid values satisfying the type constraint
+2. Uses the validator logic internally to ensure correctness
+3. Generates varied examples (e.g., for numbers: small, large, boundary values; for composites: mixed patterns)
+4. Returns values that would pass the validator
+
+Respond with ONLY a JavaScript generator function (no markdown, no explanation). Start with 'function* generate' and include the full implementation.
+
+Example format:
+function* generate${typeText}() {
+  const validator = (value) => { ... };
+  for (let i = 0; i < 100; i++) {
+    yield <value>;
+  }
+}
+`;
+}
+
+export interface GeneratorFunction {
+  name: string;
+  source: string;
+}

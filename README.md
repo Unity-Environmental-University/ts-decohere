@@ -18,9 +18,26 @@ The system infers constraints from type expressions, uses LLMs to generate candi
 
 ## Installation
 
+### From GitHub (Pre-1.0)
+
+This package is currently in pre-1.0 development and can be installed directly from GitHub:
+
+```bash
+npm install github:anthropics/ts-decohere
+```
+
+Or with a specific version tag:
+```bash
+npm install github:anthropics/ts-decohere#v0.0.1-pre.1
+```
+
+### Local Development
+
 ```bash
 npm install
 ```
+
+### Setup
 
 Set up your OpenAI API key in `.env`:
 ```bash
@@ -64,7 +81,34 @@ See `examples/playground.ts` for input and `examples/playground.decohered.ts` fo
 5. **Synthesize**: Use LLM to generate candidate values and heuristics
 6. **Validate**: Test candidates against all constraints
 7. **Cache**: Store validated values with their heuristics
-8. **Materialize**: Replace `Decohere<T>()` with concrete value casts
+8. **Generate**: (Experimental) For complex types, optionally generate test value generators for fuzzing
+9. **Materialize**: Replace `Decohere<T>()` with concrete value casts
+
+### Experimental: LLM-Generated Test Generators
+
+For types like `Prime`, the system can optionally generate fuzzing functions that produce diverse valid test values:
+
+```typescript
+function* generatePrime() {
+  function isPrime(n) {
+    if (n < 2) return false;
+    for (let i = 2; i <= Math.sqrt(n); i++) {
+      if (n % i === 0) return false;
+    }
+    return true;
+  }
+
+  for (let i = 0; i < 100; i++) {
+    let candidate = Math.floor(Math.random() * 10000) + 2;
+    while (!isPrime(candidate)) {
+      candidate++;
+    }
+    yield candidate;
+  }
+}
+```
+
+This enables property-based testing and better cache seeding with representative values.
 
 ## Type Primitives
 

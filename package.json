@@ -1,8 +1,12 @@
 {
-  "name": "decohere-toy",
-  "version": "1.0.0",
-  "description": "",
+  "name": "@decohere/ts-decohere",
+  "version": "0.0.1-pre.1",
+  "description": "TypeScript quantum-inspired type decoherence - synthesizing runtime values from complex type constraints using LLM-powered heuristic inference",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anthropics/ts-decohere.git"
+  },
   "scripts": {
     "decohere": "ts-node tooling/decohere-build.ts",
     "play": "npm run decohere && ts-node src/playground.decohered.ts",
@@ -10,9 +14,15 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "typescript",
+    "type-synthesis",
+    "llm",
+    "constraint-solving",
+    "test-generation"
+  ],
+  "author": "Anthropic",
+  "license": "MIT",
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "@types/jest": "^29.5.11",
