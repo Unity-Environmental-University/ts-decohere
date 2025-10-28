@@ -75,6 +75,18 @@ type EvenNumbers = CohereFromExamples<2 | 4 | 6 | 8>;
 type Primes = CohereFromExamples<2 | 3 | 5 | 7 | 11>;
 ```
 
+### `InferFromUsage<T>`
+Capture structural usage hints from example object/tuple literals:
+```typescript
+type Sandwich = InferFromUsage<
+  [
+    { bread: "rye"; meat: "cold cuts"; cheese: "cheddar" },
+    { bread: ["rye", "pumpernickle"]; meat: "cold cuts"; cheese: "cheddar" }
+  ]
+>;
+```
+The build step analyzes the provided shapes to infer required keys and allowable literal combinations.
+
 ### `GreaterThanX<N>`
 Explicit numeric constraints:
 ```typescript
@@ -136,6 +148,20 @@ type User = CohereFromExamples<
 
 type SortedArray = InferFromMeasurements<[1,2,3] | [5,10,15]> & Ascending;
 ```
+
+### Runtime Checking Helpers
+Use `testIsType<T>(value)` to validate candidate values against inferred constraints without materializing a new sample:
+```typescript
+import { Decohere, InferFromUsage, testIsType } from "./src/decoherent";
+
+const sandwich = Decohere<InferFromUsage<[{ bread: "rye"; meat: "cold cuts" } ]>>();
+const maybeHotdox = { bread: "hotdox bun", meat: "hotdox" };
+
+console.log(testIsType<typeof sandwich>(maybeHotdox)); // false
+```
+The build step rewrites `testIsType` invocations into the synthesized predicate bundle drawn from derived constraints and cached heuristics.
+
+All synthesized predicates are persisted in `generated/predicates/registry.json` and surfaced through `generated/predicates/index.ts`, so reused shapes stay available across builds without touching core library code.
 
 ## Contributing
 

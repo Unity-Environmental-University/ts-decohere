@@ -2,6 +2,7 @@ export type Decoherable<T> = T & { readonly __decoherable?: unique symbol };
 
 export type InferFromMeasurments<T> = Decoherable<T>;
 export type CohereFromExamples<T> = Decoherable<T>;
+export type InferFromUsage<T> = Decoherable<T>;
 
 export type GreaterThanX<T extends number> = Decoherable<number> & {
   readonly __minimum: T;
