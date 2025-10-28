@@ -18,12 +18,12 @@
     {
       "id": 1,
       "title": "Helper registry & single-line predicates",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "id": 2,
       "title": "Prompt updates & multi-candidate validator selection",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "id": 3,
@@ -42,6 +42,23 @@
       "type": "note",
       "data": {
         "text": "Plan sets up helper registry, smarter prompts, richer predicate storage, targeted cache regeneration, and predicate audits."
+      }
+    },
+    {
+      "ts": "2025-10-28T11:11:00Z",
+      "type": "step_completed",
+      "data": {
+        "step_id": 1,
+        "title": "Helper registry & single-line predicates",
+        "summary": "Implemented HelperRegistry type system, persistence layer, single-line predicate compiler, and integration into build pipeline. Generated helpers/index.ts API ready for use."
+      }
+    },
+    {
+      "ts": "2025-10-28T11:11:30Z",
+      "type": "step_started",
+      "data": {
+        "step_id": 2,
+        "title": "Prompt updates & multi-candidate validator selection"
       }
     }
   ],
