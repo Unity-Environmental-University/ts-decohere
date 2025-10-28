@@ -1,12 +1,26 @@
 import { Decohere, InferFromMeasurments, GreaterThanX, CohereFromExamples, InferFromUsage } from "./decoherent";
 import { evaluatePredicates } from "../generated/predicates/index";
 
-type Even = 2 | 4 | 6 | 8 | 10;
-type Prime = 2 | 3 | 5 | 7 | 11;
+const generateEvenNumbers = () => {
+  const out = []
+  for (var i = 0; i < 100; i++) {
+    out.push(Math.floor((Math.random() * 100)) * 2)
+  }
+  return out;
+}
+
+type Even = InferFromUsage<ReturnType<typeof generateEvenNumbers>[number]>;
+
+const generatePrimes = () => {
+  const primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
+  return primes;
+}
+
+type Prime = InferFromUsage<ReturnType<typeof generatePrimes>[number]>;
 
 const special = (2 as unknown as Even & Prime);
 const even = (2 as unknown as Even);
-const prime = (2 as unknown as Prime);
+const prime = (7 as unknown as Prime);
 
 console.log("Even", even);
 console.log("Prime", prime);

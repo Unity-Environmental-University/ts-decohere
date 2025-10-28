@@ -1,7 +1,21 @@
 import { Decohere, InferFromMeasurments, GreaterThanX, CohereFromExamples, InferFromUsage, testIsType } from "./decoherent";
 
-type Even = InferFromMeasurments<[2,4,6,8,10]>;
-type Prime = InferFromMeasurments<[2,3,5,7,11]>;
+const generateEvenNumbers = () => {
+  const out = []
+  for (var i = 0; i < 100; i++) {
+    out.push(Math.floor((Math.random() * 100)) * 2)
+  }
+  return out;
+}
+
+type Even = InferFromUsage<ReturnType<typeof generateEvenNumbers>[number]>;
+
+const generatePrimes = () => {
+  const primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
+  return primes;
+}
+
+type Prime = InferFromUsage<ReturnType<typeof generatePrimes>[number]>;
 
 const special = Decohere<Even & Prime>();
 const even = Decohere<Even>();
