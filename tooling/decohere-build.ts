@@ -193,7 +193,7 @@ const project = new Project({
   tsConfigFilePath: join(PROJECT_ROOT, "tsconfig.json"),
 });
 
-const OUTPUT_FILE = "examples/playground.decohered.ts";
+let OUTPUT_FILE = "examples/playground.decohered.ts";  // Will be set dynamically in main()
 const CACHE_DIR = join(PROJECT_ROOT, factoryCacheDir);
 mkdirSync(CACHE_DIR, { recursive: true });
 const PREDICATE_REGISTRY_DIR = join(PROJECT_ROOT, "generated", "predicates");
@@ -2488,7 +2488,21 @@ async function processFile(entryPath: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  await processFile("examples/playground.ts");
+  // Allow specifying source file via CLI arg or env var
+  const sourceFile =
+    process.argv[2] ||                              // CLI arg: npm run decohere src/myfile.ts
+    process.env.DECOHERE_SOURCE_FILE ||            // Env var
+    "examples/playground.ts";                       // Default fallback
+
+  // Compute output file: src/foo.ts → src/foo.decohered.ts
+  const ext = sourceFile.lastIndexOf(".");
+  OUTPUT_FILE = ext > 0
+    ? sourceFile.slice(0, ext) + ".decohered.ts"
+    : sourceFile + ".decohered.ts";
+
+  console.log(`[decohere] Processing: ${sourceFile}`);
+  console.log(`[decohere] Output: ${OUTPUT_FILE}`);
+  await processFile(sourceFile);
 }
 
 main().catch((error) => {

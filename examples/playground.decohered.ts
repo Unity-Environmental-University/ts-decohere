@@ -20,7 +20,7 @@ type Prime = InferFromUsage<ReturnType<typeof generatePrimes>[number]>;
 
 const special = (2 as unknown as Even & Prime);
 const even = (2 as unknown as Even);
-const prime = (7 as unknown as Prime);
+const prime = (3 as unknown as Prime);
 
 console.log("Even", even);
 console.log("Prime", prime);
@@ -78,5 +78,5 @@ type Hotdog = {
 const sandwich = ({"bread":"rye","meat":"cold cuts","cheese":"cheddar"} as unknown as Sandwich);
 console.log("Classic Sandwich", sandwich);
 
-const hotdog = ({"bread":"hotdog bun","meat":"hotdog","condiments":["mustard","relish","ketchup"]} as unknown as Hotdog);
-console.log("Does hotdox fit classic sandwich?", evaluatePredicates(["05b8f83c9c889bcb5f166e70941c365539a036ce74ba8bc89c1b898affabc6fc", "c4ea6b1a3fce987bc83388a2fb3ff1293f9fbdb43181e277e1211572c87e1e4c", "1997b105632673953b0c765c1bdc91958c8b6d43bad9d5e6239d5134431364a4", "72f1c9efb90e0d1e05f7c5dc6e9a57512a25e3800e37ea5642e616b1e6a2dc10"], hotdog));
+const hotdog = ({"bread":"hotdog bun","meat":"hotdog"} as unknown as Hotdog);
+console.log("Does hotdox fit classic sandwich?", evaluatePredicates(["05b8f83c9c889bcb5f166e70941c365539a036ce74ba8bc89c1b898affabc6fc", "ea08b20204e52cc483a0ee94dc4e095f65df72fcde33ae1582e79bae22a4302c", "5e87d1e0dfd8835f206e90059474b03bb78b915ec8baa72f5ee322b698df1fcf", "8097afe685eff861b8389b2aef82258a6e01485045cfeae944ef8e8935d9b6c6", "8f8690febf5fee733d0a7b0123950d99825aaf58363021e702f468d466691c63"], hotdog));
