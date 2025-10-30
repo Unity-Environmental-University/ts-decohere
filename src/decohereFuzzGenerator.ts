@@ -12,6 +12,10 @@
  * Usage:
  * const gen = decohereFuzzGenerator<MyType>();
  * const samples = gen.generateN(100);  // Fast, cheap, valid
+ *
+ * Example usage in vscode-rhizome:
+ * @see https://github.com/unity-hallie/vscode-rhizome/blob/feature/rubber-duck-state-ui/src/rubberDuck/SessionState.test.ts
+ * Look for: "const gen = decohereFuzzGenerator<SessionState>()" (when implemented)
  */
 
 export type FuzzGeneratorOptions = {
