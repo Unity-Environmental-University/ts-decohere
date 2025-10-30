@@ -133,7 +133,10 @@ type SingleLinePredicateExpression =
   | `Array.isArray(x)`
   | `(x) => ${string}`;
 
-const PROJECT_ROOT = join(__dirname, "..");
+// Allow overriding project root via env var (useful for multi-project setups)
+const PROJECT_ROOT = process.env.DECOHERE_PROJECT_ROOT
+  ? join(process.cwd(), process.env.DECOHERE_PROJECT_ROOT)
+  : join(__dirname, "..");
 const CONFIG_PATH = join(PROJECT_ROOT, "decohere.config.json");
 
 const defaultEnvSearchPaths = [".env", "~/Documents/repos/tools/.env"];

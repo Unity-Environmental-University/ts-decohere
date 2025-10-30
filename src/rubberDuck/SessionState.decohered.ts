@@ -52,3 +52,10 @@ export type SessionState = {
   conversationHistory: ConversationEntry[];
   fileContentHashAtStart: string;   // To detect file changes
 };
+
+/**
+ * Test: Can decohere synthesize a ConversationEntry from the UI and storage views?
+ * The decohere build step will see this call and generate test data.
+ * (This will be replaced with actual test data by the build step, or removed.)
+ */
+export const TEST_CONVERSATION_ENTRY: ConversationEntry = ({"id":"123abc","timestamp":1686182400000,"sender":"user","text":"Hello, how can I help you?","metadata":{"client":"web","isRead":false}} as unknown as ConversationEntry);
