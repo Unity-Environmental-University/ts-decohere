@@ -13,3 +13,10 @@ export {
 } from "./decobase";
 
 export { Decohere, testIsType } from "./decoherent";
+
+export {
+  FuzzGenerator,
+  FuzzGeneratorOptions,
+  HeuristicDefinition,
+  decohereFuzzGenerator,
+} from "./decohereFuzzGenerator";
