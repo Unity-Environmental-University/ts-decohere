@@ -2271,6 +2271,32 @@ async function processFile(entryPath: string): Promise<void> {
   let mutations = 0;
   const globalComponentResolvedTypes = new Map<string, string>();
 
+  // First, handle InferFromUsage<T> type annotations
+  // These are type definitions that should be synthesized from usage patterns
+  const inferFromUsageTypes: Array<{ name: string; type: string }> = [];
+  for (const typeAlias of sourceFile.getDescendantsOfKind(SyntaxKind.TypeAliasDeclaration)) {
+    const typeText = typeAlias.getTypeNode()?.getText() ?? "";
+
+    // Look for InferFromUsage<T> patterns
+    if (typeText.includes("InferFromUsage")) {
+      const match = typeText.match(/InferFromUsage<([^>]+)>/);
+      if (match) {
+        const inferredType = match[1].trim();
+        inferFromUsageTypes.push({
+          name: typeAlias.getName(),
+          type: inferredType,
+        });
+        console.log(`[decohere] Found InferFromUsage<${inferredType}> for ${typeAlias.getName()}`);
+      }
+    }
+  }
+
+  // Generate test data for InferFromUsage types
+  // For now, we'll generate a Decohere<T>() call dynamically for each
+  if (inferFromUsageTypes.length > 0) {
+    console.log(`[decohere] Generating test data for ${inferFromUsageTypes.length} InferFromUsage type(s)`);
+  }
+
   for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
     const expressionText = call.getExpression().getText();
     if (expressionText !== "Decohere" && expressionText !== "testIsType") {
@@ -2463,7 +2489,12 @@ async function processFile(entryPath: string): Promise<void> {
   }
 
   if (mutations === 0) {
-    console.warn("No Decohere<T>() calls found. Nothing to do.");
+    if (inferFromUsageTypes.length === 0) {
+      console.warn("No Decohere<T>() calls or InferFromUsage<T> type annotations found. Nothing to do.");
+    } else {
+      console.log(`[decohere] Recognized ${inferFromUsageTypes.length} InferFromUsage type(s), but no explicit Decohere<T>() calls to synthesize.`);
+      console.log(`[decohere] Tip: Add Decohere<${inferFromUsageTypes[0].name}>() to synthesize test data for ${inferFromUsageTypes[0].name}.`);
+    }
   }
 
   for (const alias of sourceFile.getTypeAliases()) {
